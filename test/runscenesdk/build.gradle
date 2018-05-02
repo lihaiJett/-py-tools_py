@@ -1,0 +1,280 @@
+apply plugin: 'com.android.library'
+
+def dependencies_ext = [
+        "vrsdk": ":runscenegvr",
+]
+switch (VRSDK) {
+    case "dpnn":
+        dependencies_ext = [
+                "vrsdk": ":runscenedpnn",
+        ]
+        break
+    case "gvr":
+        dependencies_ext = [
+                "vrsdk": ":runscenegvr",
+        ]
+        break
+    case "vrx":
+        dependencies_ext = [
+                "vrsdk": ":runscenegvr",
+        ]
+        break
+    case "pico":
+        dependencies_ext = [
+                "vrsdk": ":runscenepico",
+        ]
+        break
+}
+
+android {
+    compileSdkVersion 25
+
+
+
+    defaultConfig {
+        minSdkVersion 19
+        targetSdkVersion 25
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+}
+
+
+configurations { natives }
+dependencies {
+    // api project(':runscene')
+    // api project(':runsceneinterface')
+    // api project(':runscenekeyboard')
+    // api project(dependencies_ext["vrsdk"])
+    // or
+    // api files('libs/game.jar')
+    // 通过脚本进行依赖修改，请勿删除注释
+    //#dependencies start#//
+     api project(':runscene')
+ 
+    //#dependencies stop#//
+
+
+    natives "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-armeabi"
+    natives "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-armeabi-v7a"
+    natives "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-arm64-v8a"
+    natives "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-x86"
+    natives "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-x86_64"
+
+
+    //如果这个模块打包成aar，以下库需要额外依赖
+//    api project(':runscenethird')
+    api 'com.google.vr:sdk-audio:1.120.0'
+    api 'com.google.vr:sdk-base:1.120.0'
+    api 'com.google.vr:sdk-controller:1.120.0'
+    api 'com.google.vr:sdk-panowidget:1.120.0'
+
+    api 'com.github.bumptech.glide:glide:4.0.0'
+    api 'pl.droidsonroids.gif:android-gif-drawable:1.2.8'
+    api "com.badlogicgames.gdx:gdx-backend-android:$gdxVersion"
+    api "com.badlogicgames.gdx:gdx:$gdxVersion"
+    api "com.android.support:support-v4:$ANDROID_SUPPORT_LIBRARY_VERSION"
+    api 'com.google.code.gson:gson:2.8.2'
+    api 'io.reactivex.rxjava2:rxjava:2.1.3'
+    api 'io.reactivex.rxjava2:rxandroid:2.0.1'
+    api "com.facebook.fresco:fresco:${FRESCO_VERSION}"
+    api "com.facebook.fresco:imagepipeline-okhttp3:${FRESCO_VERSION}"
+    api project(':utilmodule')
+    api project(':runscenesdkext')
+
+
+}
+// called every time gradle gets executed, takes the native dependencies of
+// the natives configuration, and extracts them to the proper libs/ folders
+// so they get packed with the APK.
+task copyAndroidNatives() {
+    file("src/main/jniLibs/armeabi/").mkdirs()
+    file("src/main/jniLibs/armeabi-v7a/").mkdirs()
+    file("src/main/jniLibs/arm64-v8a/").mkdirs()
+    file("src/main/jniLibs/x86_64/").mkdirs()
+    file("src/main/jniLibs/x86/").mkdirs()
+
+    configurations.natives.files.each { jar ->
+        def outputDir = null
+        if (jar.name.endsWith("natives-arm64-v8a.jar")) outputDir = file("src/main/jniLibs/arm64-v8a")
+        if (jar.name.endsWith("natives-armeabi-v7a.jar")) outputDir = file("src/main/jniLibs/armeabi-v7a")
+        if (jar.name.endsWith("natives-armeabi.jar")) outputDir = file("src/main/jniLibs/armeabi")
+        if (jar.name.endsWith("natives-x86_64.jar")) outputDir = file("src/main/jniLibs/x86_64")
+        if (jar.name.endsWith("natives-x86.jar")) outputDir = file("src/main/jniLibs/x86")
+        if (outputDir != null) {
+            copy {
+                from zipTree(jar)
+                into outputDir
+                include "*.so"
+            }
+        }
+    }
+}
+
+// 通过脚本进行依赖修改，请勿删除注释
+//#task COPY_MODULE_PLACEHOLDER#//
+def copyToSdkModule (def moduleName) {
+    //该参数通过命令行传入gradlew -PmoduleName="runscene" :runscenesdk:copyToSdkModule
+    def fromPath = '../'+ moduleName + '/'
+    //拷贝Libs
+    copy{
+        from(fromPath+'libs/')
+        into('libs/')
+        include('*.jar')
+    }
+    //拷贝JAR
+    copy{
+        from(fromPath+ 'build/intermediates/bundles/release/')
+        into('libs/')
+        include('classes.jar')
+        rename ('classes.jar', moduleName+'_'+android.defaultConfig.versionName+'.jar')
+    }
+    //拷贝 res文件 有可能会冲突，尽量将无用的删除掉
+    copy{
+        from(fromPath+'src/main/res/')
+        into('src/main/res/')
+        include('**/*.*')
+    }
+    //拷贝 Assets
+    copy{
+        from(fromPath+'build/intermediates/bundles/release/assets/')
+        into('src/main/assets/')
+        include('**/*.*')
+    }
+    //拷贝 .so文件
+    copy{
+        from(fromPath+'src/main/jniLibs/')
+        into('src/main/jniLibs/')
+        include('**/*.*')
+    }
+
+}
+
+//
+//public void create(ArrayList<String>jarPaths, String output) {
+//    String jarPath = "";
+//    Manifest manifest = getManifest();   //获取outJar的manifest
+//    FileOutputStream fos = new FileOutputStream(output);
+//    JarOutputStream jos = new JarOutputStream(fos, manifest);  //根据输出路径和manifest创建输出流
+//    for (int i = 0; i < jarPaths.size(); i++) {
+//        jarPath = jarsPaths.get(i);
+//        JarFile jarFile = new JarFile(jarPath);
+//        Enumeration<?> entities = jarFile.entries();
+//        while (entities.hasMoreElements()) {
+//            JarEntry entry = (JarEntry) entities.nextElement();  //遍历jar文件中的每个文件节点
+//
+//            //在写目录中的文件时，目录会自动创建
+//            //meta-inf使用我们上面获取的manifest，不使用之前的了meta-inf
+//            if (entry.isDirectory() || entry.getName().toLowerCase().startsWith("meta-inf")) {
+//                continue;
+//            }
+//
+//            InputStream inn = jarFile.getInputStream(entry);
+//            copyData2Jar(inn, jos, entry.getName());
+//        }
+//
+//        jarFile.close();
+//    }
+//}
+
+//private void copyData2Jar(InputStream inn, JarOutputStream jos, String newEntryName) {
+//    int bufferSize;
+//    byte[] buffer = new byte[1024];
+//
+//    jos.putNextEntry(new JarEntry(newEntryName));  //在outJar中的创建文件节点
+//
+//    while ((bufferSize = inn.read(buffer, 0, buffer.length)) != -1) {
+//        jos.write(buffer, 0, bufferSize);
+//    }
+//
+//    inn.close();
+//    jos.closeEntry();
+//}
+//
+//private Manifest getManifest() {
+//    Manifest manifest = new Manifest() {
+//        @Override
+//        Attributes getAttributes() {
+//            return null
+//        }
+//
+//        @Override
+//        Map<String, Attributes> getSections() {
+//            return null
+//        }
+//
+//        @Override
+//        Manifest attributes(Map<String, ?> attributes) throws ManifestException {
+//            return null
+//        }
+//
+//        @Override
+//        Manifest attributes(Map<String, ?> attributes, String sectionName) throws ManifestException {
+//            return null
+//        }
+//
+//        @Override
+//        Manifest getEffectiveManifest() {
+//            return null
+//        }
+//
+//        @Override
+//        Manifest writeTo(Object path) {
+//            return null
+//        }
+//
+//        @Override
+//        Manifest from(Object... mergePath) {
+//            return null
+//        }
+//
+//        @Override
+//        Manifest from(Object mergePath, Closure<?> closure) {
+//            return null
+//        }
+//    };
+//    Attributes attribute = manifest.getMainAttributes();
+//    attribute.putValue("Manifest-Version", "1.0");
+//    attribute.putValue("Created-By","fat jar plugin");
+//    return manifest;
+//}
+//
+//def androidSDKDir = plugins.getPlugin('com.android.library').sdkHandler.getSdkFolder()
+//def androidJarDir = androidSDKDir.toString() + '/platforms/' + "${android.compileSdkVersion}" + '/android.jar'
+//
+//// 混淆 jar 包
+//task proguardJar(type: ProGuardTask){
+//    def properties = new Properties()
+//    def file = file("../local.properties")
+//    properties.load(new FileInputStream(file))
+//    def sdkDir = properties.getProperty("sdk.dir")
+//
+//    // 输出路径
+//    def path = "output/${project.ext.SDK_NAME}.jar"
+//    delete path
+//
+//    // 未混淆的jar路径
+//    injars "libs/game.jar"
+//    // 混淆后的jar输出路径
+//    outjars path
+//    // 混淆协议
+//    configuration 'proguard-android.txt', 'proguard-rules.pro', 'proguard-fresco.pro', 'proguard-gvr.txt', 'proguard-glide.pro', 'proguard-chromium.pro', 'proguard-umeng-analyze.pro', 'proguard-umeng-push.pro'
+//
+//    // 忽略 Java 和 Android API
+////    libraryjars "${System.getProperty('java.home')}/lib/rt.jar"
+////    libraryjars "${System.getProperty('java.home')}/lib/jce.jar"
+////    libraryjars "${sdkDir}/platforms/android-${rootProject.ext.pyramidneyCompileSdkVersion}/android.jar"
+//
+//    println("proguardJar done!")
+//}
