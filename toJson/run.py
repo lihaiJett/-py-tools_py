@@ -11,7 +11,7 @@ index = 0
 #             index += 1
 #             print( file,'ok')
 j = {"images": []}
-for i in range(184):
+for i in range(9):
     a = {
         "image": "c" + str(i) + ".jpeg",
         "name": "c" + str(i),
