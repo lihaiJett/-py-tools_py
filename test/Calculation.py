@@ -54,5 +54,7 @@ def c_three(d):
 
 # print("!!!!!!!!!!!!!!")
 # print(c_three(data[0]))
+
 for d in data:
     print(c_three(d))
+
